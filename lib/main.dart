@@ -1,47 +1,43 @@
 import 'package:flutter/material.dart';
-import 'package:flutter/foundation.dart' as foundation;
 import 'dart:async';
-import 'package:proximity_sensor/proximity_sensor.dart';
+import 'package:light/light.dart';
 
-////////////////////////////////////////////////////////////////////////////////
-void main() {
-  runApp(VsjSensor());
-}
+void main() => runApp(new MyApp());
 
-////////////////////////////////////////////////////////////////////////////////
-class VsjSensor extends StatefulWidget {
+class MyApp extends StatefulWidget {
   @override
-  _VsjSensorState createState() => _VsjSensorState();
+  _MyAppState createState() => new _MyAppState();
 }
 
-////////////////////////////////////////////////////////////////////////////////
-class _VsjSensorState extends State<VsjSensor> {
-  bool _isNear = false;
-  late StreamSubscription<dynamic> _streamSubscription;
+class _MyAppState extends State<MyApp> {
+  String _luxString = 'Unknown';
+  Light? _light;
+  StreamSubscription? _subscription;
+
+  void onData(int luxValue) async {
+    print("Lux value: $luxValue");
+    setState(() {
+      _luxString = "$luxValue";
+    });
+  }
+
+  void stopListening() {
+    _subscription?.cancel();
+  }
+
+  void startListening() {
+    _light = Light();
+    try {
+      _subscription = _light?.lightSensorStream.listen(onData);
+    } on LightException catch (exception) {
+      print(exception);
+    }
+  }
 
   @override
   void initState() {
     super.initState();
-    listenSensor();
-  }
-
-  @override
-  void dispose() {
-    super.dispose();
-    _streamSubscription.cancel();
-  }
-
-  Future<void> listenSensor() async {
-    FlutterError.onError = (FlutterErrorDetails details) {
-      if (foundation.kDebugMode) {
-        FlutterError.dumpErrorToConsole(details);
-      }
-    };
-    _streamSubscription = ProximitySensor.events.listen((int event) {
-      setState(() {
-        _isNear = (event > 0) ? true : false;
-      });
-    });
+    startListening();
   }
 
   @override
@@ -50,10 +46,10 @@ class _VsjSensorState extends State<VsjSensor> {
       debugShowCheckedModeBanner: false,
       home: Scaffold(
         appBar: AppBar(
-            title: const Text('VSJ Proximity Sensor Example'),
-            centerTitle: true),
+          title: const Text('VSJ Light Sensor'),
+        ),
         body: Center(
-          child: Text('Someone is near ?  $_isNear\n'),
+          child: Text('Light value: $_luxString\n'),
         ),
       ),
     );
