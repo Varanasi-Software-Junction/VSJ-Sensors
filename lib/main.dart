@@ -1,43 +1,55 @@
 import 'package:flutter/material.dart';
 import 'dart:async';
-import 'package:light/light.dart';
 
-void main() => runApp(new MyApp());
+import 'package:environment_sensors/environment_sensors.dart';
+
+void main() {
+  runApp(MyApp());
+}
 
 class MyApp extends StatefulWidget {
   @override
-  _MyAppState createState() => new _MyAppState();
+  _MyAppState createState() => _MyAppState();
 }
 
 class _MyAppState extends State<MyApp> {
-  String _luxString = 'Unknown';
-  Light? _light;
-  StreamSubscription? _subscription;
-
-  void onData(int luxValue) async {
-    print("Lux value: $luxValue");
-    setState(() {
-      _luxString = "$luxValue";
-    });
-  }
-
-  void stopListening() {
-    _subscription?.cancel();
-  }
-
-  void startListening() {
-    _light = Light();
-    try {
-      _subscription = _light?.lightSensorStream.listen(onData);
-    } on LightException catch (exception) {
-      print(exception);
-    }
-  }
+  bool _tempAvailable = false;
+  bool _humidityAvailable = false;
+  bool _lightAvailable = false;
+  bool _pressureAvailable = false;
+  final environmentSensors = EnvironmentSensors();
 
   @override
   void initState() {
     super.initState();
-    startListening();
+    environmentSensors.pressure.listen((pressure) {
+      print(pressure.toString());
+    });
+    initPlatformState();
+  }
+
+  // Platform messages are asynchronous, so we initialize in an async method.
+  Future<void> initPlatformState() async {
+    bool tempAvailable;
+    bool humidityAvailable;
+    bool lightAvailable;
+    bool pressureAvailable;
+
+    tempAvailable = await environmentSensors
+        .getSensorAvailable(SensorType.AmbientTemperature);
+    humidityAvailable =
+        await environmentSensors.getSensorAvailable(SensorType.Humidity);
+    lightAvailable =
+        await environmentSensors.getSensorAvailable(SensorType.Light);
+    pressureAvailable =
+        await environmentSensors.getSensorAvailable(SensorType.Pressure);
+
+    setState(() {
+      _tempAvailable = tempAvailable;
+      _humidityAvailable = humidityAvailable;
+      _lightAvailable = lightAvailable;
+      _pressureAvailable = pressureAvailable;
+    });
   }
 
   @override
@@ -45,13 +57,48 @@ class _MyAppState extends State<MyApp> {
     return MaterialApp(
       debugShowCheckedModeBanner: false,
       home: Scaffold(
-        appBar: AppBar(
-          title: const Text('VSJ Light Sensor'),
-        ),
-        body: Center(
-          child: Text('Light value: $_luxString\n'),
-        ),
-      ),
+          appBar: AppBar(
+            title: const Text('VSJ Environment Sensors'),
+          ),
+          body: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+            (_tempAvailable)
+                ? StreamBuilder<double>(
+                    stream: environmentSensors.humidity,
+                    builder: (context, snapshot) {
+                      if (!snapshot.hasData) return CircularProgressIndicator();
+                      return Text(
+                          'The Current Humidity is: ${snapshot.data?.toStringAsFixed(2)}%');
+                    })
+                : const Text('No relative humidity sensor found'),
+            (_humidityAvailable)
+                ? StreamBuilder<double>(
+                    stream: environmentSensors.temperature,
+                    builder: (context, snapshot) {
+                      if (!snapshot.hasData) return CircularProgressIndicator();
+                      return Text(
+                          'The Current Temperature is: ${snapshot.data?.toStringAsFixed(2)}');
+                    })
+                : Text('No temperature sensor found'),
+            (_lightAvailable)
+                ? StreamBuilder<double>(
+                    stream: environmentSensors.light,
+                    builder: (context, snapshot) {
+                      if (!snapshot.hasData) return CircularProgressIndicator();
+                      return Text(
+                          'The Current Light is: ${snapshot.data?.toStringAsFixed(2)}');
+                    })
+                : Text('No light sensor found'),
+            (_pressureAvailable)
+                ? StreamBuilder<double>(
+                    stream: environmentSensors.pressure,
+                    builder: (context, snapshot) {
+                      if (!snapshot.hasData) return CircularProgressIndicator();
+                      return Text(
+                          'The Current Pressure is: ${snapshot.data?.toStringAsFixed(2)}');
+                    })
+                : Text('No pressure sensor found'),
+            //ElevatedButton(onPressed: initPlatformState , child: Text('Get'))
+          ])),
     );
   }
 }

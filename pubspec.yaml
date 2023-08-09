@@ -17,6 +17,7 @@ dependencies:
   sensors_plus: ^3.0.3
   proximity_sensor: ^1.0.4
   light: ^3.0.1
+  environment_sensors: ^0.3.0
 
 dev_dependencies:
   flutter_test:
